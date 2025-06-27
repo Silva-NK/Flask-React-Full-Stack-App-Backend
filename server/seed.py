@@ -1,17 +1,60 @@
-#!/usr/bin/env python3
+#!/usr/bin/env 
 
-# Standard library imports
-from random import randint, choice as rc
+from datetime import datetime
 
-# Remote library imports
-from faker import Faker
+from config import app, db
 
-# Local imports
-from app import app
-from models import db
+from models import Planner, Event, Guest, Attendance
 
-if __name__ == '__main__':
-    fake = Faker()
-    with app.app_context():
-        print("Starting seed...")
-        # Seed code goes here!
+with app.app_context():
+    db.session.query(Event).delete()
+    db.session.query(Guest).delete()
+    db.session.query(Attendance).delete()
+    print("Existing data cleared successfully!")
+    db.session.commit()
+
+    planner = Planner.query.filter_by(email="test@planner.com").first()
+    if not planner:
+        planner = Planner(
+            username="test_planner",
+            email="test@planner.com",
+            password="password123"
+        )
+        db.session.add(planner)
+        db.session.commit()
+
+
+    event = Event(
+        name="Sample Event",
+        description="This is a sample event for testing.",
+        venue="Test Venue",
+        date=datetime(2025, 7, 1).date(),
+        time=datetime(2025, 7, 1, 14, 0).time(),
+        planner_id=planner.id
+    )
+
+    db.session.add(event)
+    db.session.commit()
+
+    guest = Guest(
+        name="Sample Guest",
+        email="guest@example.com",
+        phone="1234567890",
+        planner_id=planner.id
+    )
+
+    db.session.add(guest)
+    db.session.commit()
+
+    attendance = Attendance(
+        rsvp_status="Accepted",
+        plus_ones=0,
+        guest_id=guest.id,
+        event_id=event.id,
+        planner_id=planner.id
+    )
+
+    db.session.add(attendance)
+    db.session.commit()
+
+    print("Seed data added successfully!")

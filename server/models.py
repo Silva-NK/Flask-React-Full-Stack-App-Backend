@@ -1,0 +1,149 @@
+import re
+
+from sqlalchemy_serializer import SerializerMixin
+from sqlalchemy.ext.associationproxy import association_proxy
+from werkzeug.security import generate_password_hash, check_password_hash
+
+from config import db
+
+class Planner(db.Model, SerializerMixin):
+    __tablename__ = "planners"
+
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String, unique=True, nullable=False)
+    _email = db.Column(db.String(150), unique=True, nullable=False)
+    password_hash = db.Column(db.String, nullable=False)
+
+    created_at = db.Column(db.DateTime, server_default=db.func.now())
+    updated_at = db.Column(db.DateTime, onupdate=db.func.now())
+
+
+    events = db.relationship("Event", backref="planner", cascade="all, delete-orphan")
+    guests = db.relationship("Guest", backref="planner", cascade="all, delete-orphan")
+    attendances = db.relationship("Attendance", backref="planner", cascade="all, delete-orphan")
+
+
+    @property
+    def password(self):
+        raise AttributeError("Password cannot be viewed.")
+    
+    @password.setter
+    def password(self, plain_password):
+        self.password_hash = generate_password_hash(plain_password)
+    
+    def check_password(self, plain_password):
+        return check_password_hash(self.password_hash, plain_password)
+
+    
+    @property
+    def email(self):
+        return self._email
+    
+    @email.setter
+    def email(self, email):
+        if not re.match(r"[^@]+@[^@]+\.[^@]+", email):
+            raise ValueError("Invalid email format")
+        self._email =  email
+   
+
+    def __repr__(self):
+        return f"<User {self.id}: {self.username}, {self.email}>."
+   
+
+
+class Event(db.Model, SerializerMixin):
+    __tablename__ = "events"
+
+    serialize_rules = ("-planner.events", "-attendances.event")
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String, nullable=False)
+    description = db.Column(db.String, nullable=False)
+    venue = db.Column(db.String)
+    date = db.Column(db.Date, nullable=False)
+    time = db.Column(db.Time)
+
+    planner_id = db.Column(db.Integer, db.ForeignKey("planners.id"), nullable=False)
+
+    created_at = db.Column(db.DateTime, server_default=db.func.now())
+    updated_at = db.Column(db.DateTime, onupdate=db.func.now())
+
+
+    attendances = db.relationship("Attendance", back_populates="event", cascade="all, delete-orphan")
+
+    guests = association_proxy("attendances", "guest")
+
+
+    def __repr__(self):
+        return f"<Event {self.id}: {self.name}, {self.venue}. At {self.time}: {self.date}>."
+
+
+
+class Guest(db.Model, SerializerMixin):
+    __tablename__ = "guests"
+
+    serialize_rules = ("-planner.guests", "-attendances.guests")
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String, nullable=False)
+    _email = db.Column(db.String(150), nullable=False, unique=True)
+    phone = db.Column(db.String(20), nullable=False)
+
+    planner_id = db.Column(db.Integer, db.ForeignKey("planners.id"), nullable=False)
+
+    created_at = db.Column(db.DateTime, server_default=db.func.now())
+    updated_at = db.Column(db.DateTime, onupdate=db.func.now())
+
+
+    attendances = db.relationship("Attendance", back_populates="guest", cascade="all, delete-orphan")
+
+    events = association_proxy("attendances", "event")
+
+
+    @property
+    def email(self):
+        return self._email
+    
+    @email.setter
+    def email(self, email):
+        if not re.match(r"[^@]+@[^@]+\.[^@]+", email):
+            raise ValueError("Invalid email format")
+        self._email =  email
+
+    @property
+    def phone_number(self):
+        return self.phone
+    
+    @phone_number.setter
+    def phone_number(self, phone):
+        if not re.match(r"^\+?\d{7,15}$", phone):
+            raise ValueError("Invalid phone number format.")
+        self.phone = phone
+
+
+    def __repr__(self):
+        return f"<Guest {self.id}: {self.name}, {self.email}, {self.phone}>."
+
+
+
+class Attendance(db.Model, SerializerMixin):
+    __tablename__ = "attendances"
+
+    id = db.Column(db.Integer, primary_key=True)
+    rsvp_status = db.Column(db.String, nullable=False)
+    plus_ones = db.Column(db.Integer, nullable=False)
+
+    guest_id = db.Column(db.Integer, db.ForeignKey("guests.id"), nullable=False)
+    event_id = db.Column(db.Integer, db.ForeignKey("events.id"), nullable=False)
+    planner_id = db.Column(db.Integer, db.ForeignKey("planners.id"), nullable=False)
+
+    created_at = db.Column(db.DateTime, server_default=db.func.now())
+    updated_at = db.Column(db.DateTime, onupdate=db.func.now())
+
+
+    event = db.relationship("Event", back_populates="attendances")
+    guest = db.relationship("Guest", back_populates="attendances")
+
+
+    def __repr__(self):
+        return f"<Attendance {self.id}: {self.guest.name}, {self.event_id}, {self.rsvp_status}, {self.plus_ones}>."

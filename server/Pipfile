@@ -43,9 +43,9 @@ tzdata = "==2025.2"
 wcwidth = "==0.2.13"
 werkzeug = "==2.2.2"
 flask = "*"
-gunicorn = "*"
 flask-sqlalchemy = "*"
 flask-restful = "*"
+gunicorn = "*"
 
 [dev-packages]
 

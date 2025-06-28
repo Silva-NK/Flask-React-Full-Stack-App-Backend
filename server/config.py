@@ -35,5 +35,3 @@ api = Api(app)
 
 # Instantiate CORS
 CORS(app)
-
-print("DATABASE_URL:", os.environ.get("DATABASE_URL"))

@@ -124,8 +124,8 @@ class Profile(Resource):
             'id': planner.id,
             'username': planner.username,
             'email': planner.email,
-            'created_at': planner.created_at,
-            'updated_at': planner.updated_at
+            'created_at': planner.created_at.isoformat() if planner.created_at else None,
+            'updated_at': planner.updated_at.isoformat() if planner.updated_at else None
         }, 200
   
 

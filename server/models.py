@@ -1,5 +1,6 @@
 import re
 
+from sqlalchemy.orm import validates
 from sqlalchemy_serializer import SerializerMixin
 from sqlalchemy.ext.associationproxy import association_proxy
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -11,7 +12,7 @@ class Planner(db.Model, SerializerMixin):
 
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String, unique=True, nullable=False)
-    _email = db.Column(db.String(150), unique=True, nullable=False)
+    email = db.Column(db.String(150), unique=True, nullable=False)
     password_hash = db.Column(db.String, nullable=False)
 
     created_at = db.Column(db.DateTime, server_default=db.func.now())
@@ -33,17 +34,13 @@ class Planner(db.Model, SerializerMixin):
     
     def check_password(self, plain_password):
         return check_password_hash(self.password_hash, plain_password)
+    
 
-    
-    @property
-    def email(self):
-        return self._email
-    
-    @email.setter
-    def email(self, email):
+    @validates("email")
+    def validate_email(self, key, email):
         if not re.match(r"[^@]+@[^@]+\.[^@]+", email):
             raise ValueError("Invalid email format")
-        self._email =  email
+        return email
    
 
     def __repr__(self):
@@ -86,7 +83,7 @@ class Guest(db.Model, SerializerMixin):
 
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String, nullable=False)
-    _email = db.Column(db.String(150), nullable=False, unique=True)
+    email = db.Column(db.String(150), nullable=False, unique=True)
     phone = db.Column(db.String(20), nullable=False)
 
     planner_id = db.Column(db.Integer, db.ForeignKey("planners.id"), nullable=False)
@@ -100,26 +97,18 @@ class Guest(db.Model, SerializerMixin):
     events = association_proxy("attendances", "event")
 
 
-    @property
-    def email(self):
-        return self._email
-    
-    @email.setter
-    def email(self, email):
+    @validates("email")
+    def validate_email(self, key, email):
         if not re.match(r"[^@]+@[^@]+\.[^@]+", email):
             raise ValueError("Invalid email format")
-        self._email =  email
+        return email
 
-    @property
-    def phone_number(self):
-        return self.phone
-    
-    @phone_number.setter
-    def phone_number(self, phone):
+    @validates("phone")
+    def validate_phone(self, key, phone):
         if not re.match(r"^\+?\d{7,15}$", phone):
             raise ValueError("Invalid phone number format.")
-        self.phone = phone
-
+        return phone
+    
 
     def __repr__(self):
         return f"<Guest {self.id}: {self.name}, {self.email}, {self.phone}>."

@@ -1,8 +1,8 @@
-"""Creates initial database models with essential functionalities.
+"""Initial migration creating tables from data models.
 
-Revision ID: 32086beeda26
+Revision ID: 97ca822812b0
 Revises: 
-Create Date: 2025-06-27 12:49:18.449097
+Create Date: 2025-06-29 17:01:03.272512
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '32086beeda26'
+revision = '97ca822812b0'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -21,12 +21,12 @@ def upgrade():
     op.create_table('planners',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('username', sa.String(), nullable=False),
-    sa.Column('_email', sa.String(length=150), nullable=False),
+    sa.Column('email', sa.String(length=150), nullable=False),
     sa.Column('password_hash', sa.String(), nullable=False),
     sa.Column('created_at', sa.DateTime(), server_default=sa.text('now()'), nullable=True),
     sa.Column('updated_at', sa.DateTime(), nullable=True),
     sa.PrimaryKeyConstraint('id'),
-    sa.UniqueConstraint('_email'),
+    sa.UniqueConstraint('email'),
     sa.UniqueConstraint('username')
     )
     op.create_table('events',
@@ -45,14 +45,14 @@ def upgrade():
     op.create_table('guests',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('name', sa.String(), nullable=False),
-    sa.Column('_email', sa.String(length=150), nullable=False),
+    sa.Column('email', sa.String(length=150), nullable=False),
     sa.Column('phone', sa.String(length=20), nullable=False),
     sa.Column('planner_id', sa.Integer(), nullable=False),
     sa.Column('created_at', sa.DateTime(), server_default=sa.text('now()'), nullable=True),
     sa.Column('updated_at', sa.DateTime(), nullable=True),
     sa.ForeignKeyConstraint(['planner_id'], ['planners.id'], name=op.f('fk_guests_planner_id_planners')),
     sa.PrimaryKeyConstraint('id'),
-    sa.UniqueConstraint('_email')
+    sa.UniqueConstraint('email')
     )
     op.create_table('attendances',
     sa.Column('id', sa.Integer(), nullable=False),

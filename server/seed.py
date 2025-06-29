@@ -14,14 +14,17 @@ with app.app_context():
     db.session.commit()
 
     planner = Planner.query.filter_by(email="test@planner.com").first()
-    if not planner:
-        planner = Planner(
-            username="test_planner",
-            email="test@planner.com",
-            password="password123"
-        )
-        db.session.add(planner)
+    if planner:
+        db.session.delete(planner)
         db.session.commit()
+
+    planner = Planner(
+        username="test_planner",
+        email="test@planner.com",
+        password="password123"
+    )
+    db.session.add(planner)
+    db.session.commit()
 
 
     event = Event(

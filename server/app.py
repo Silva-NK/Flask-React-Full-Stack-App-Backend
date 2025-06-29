@@ -71,7 +71,7 @@ class Login(Resource):
             password = request.form.get('password')
             
             planner = Planner.query.filter(
-                or_(Planner.username == username_or_email, Planner._email == username_or_email)
+                or_(Planner.username == username_or_email, Planner.email == username_or_email)
             ).first()
             
             if planner and planner.check_password(password):

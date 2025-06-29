@@ -21,7 +21,7 @@ with app.app_context():
     planner = Planner(
         username="test_planner",
         email="test@planner.com",
-        password="password123"
+        password="test-password123"
     )
     db.session.add(planner)
     db.session.commit()

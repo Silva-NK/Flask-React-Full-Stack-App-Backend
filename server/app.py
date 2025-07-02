@@ -4,9 +4,9 @@ import re
 import os
 
 from sqlalchemy import or_
-from datetime import datetime
 from flask import request, session
 from flask_restful import Resource
+from datetime import date, datetime
 from sqlalchemy.exc import IntegrityError
 
 from config import db, app, api
@@ -123,11 +123,17 @@ class Profile(Resource):
         if not user:
             return {"error": "User not found."}, 404
         
+        today = date.today()
+        past_events = [event for event in user.events if event.date < today]
+        upcoming_events = [event for event in user.events if event.date >= today]
+        
         return {
             "message": "User profile retrieved successfully.",
             "profile": user.to_dict(),
             "event_count": len(user.events),
-            "guest_count": len(user.guests)
+            "guest_count": len(user.guests),
+            "past_event_count": len(past_events),
+            "upcoming_event_count": len(upcoming_events)
         }, 200
 
 

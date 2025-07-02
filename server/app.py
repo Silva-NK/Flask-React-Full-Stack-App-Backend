@@ -125,7 +125,9 @@ class Profile(Resource):
         
         return {
             "message": "User profile retrieved successfully.",
-            "profile": user.to_dict()
+            "profile": user.to_dict(),
+            "event_count": len(user.events),
+            "guest_count": len(user.guests)
         }, 200
 
 
@@ -615,4 +617,4 @@ api.add_resource(Logout, '/logout', endpoint='logout')
 # if __name__ == '__main__':
 #     app.run( host='0.0.0.0', port=int(os.environ.get("PORT", 5555)), debug=True)
 if __name__ == '__main__':
-    app.run(port=5555, debug=True)
+    app.run(host="localhost", port=5555, debug=True)

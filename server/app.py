@@ -287,296 +287,304 @@ class EventByID(Resource):
 
 class Guests(Resource):
     def get(self):
-        planner_id = session.get('planner_id')
+        user_id = session.get('user_id')
 
-        if not planner_id:
-            return {'error': 'Unauthorised. Please log in.'}, 401
+        if not user_id:
+            return {"error": "Unauthorised. Please log in."}, 401
         
-        guests = Guest.query.filter_by(planner_id=planner_id).all()
-
-        return [
-            {
-                'id': guest.id,
-                "name": guest.name,
-                "email": guest.email,
-                "phone": guest.phone
-            }
-            for guest in guests
-        ], 200
+        try:
+            guests = db.session.query(Guest).filter_by(planner_id=user_id).all()
+            return [guest.to_dict() for guest in guests], 200
+        except Exception as exc:
+            return {"error": str(exc)}, 500
     
     def post(self):
-        planner_id = session.get('planner_id')
+        user_id = session.get('user_id')
 
-        if not planner_id:
-            return {'error': 'Unauthorised. Please log in.'}, 401
+        if not user_id:
+            return {"error": "Unauthorised. Please log in."}, 401
         
-        data = request.form
+        data = request.get_json()
 
         name=data.get('name')
         email=data.get('email')
         phone=data.get('phone')
 
-        errors = []
-        if not name:
-            errors.append("Guest's name is required.")
-        if not email:
-            errors.append("Guest's email address is required.")
-        if not phone:
-            errors.append("Guest's phone number is required.")
-        if email and not re.match(r"[^@]+@[^@]+\.[^@]+", email):
-            errors.append("Invalid email format.")
-        if phone and not re.match(r"^\+?\d{7,15}$", phone):
-            errors.append("Invalid phone number format.")
-
-        if errors:
-            return {'errors': errors}, 422
+        if not all([name, email, phone]):
+            return {"error": "Name, email and phone are required."}, 400
         
-        new_guest = Guest(
-            name=name,
-            email=email,
-            phone=phone,
-            planner_id=planner_id
-        )
+        if not re.match(r"[^@]+@[^@]+\.[^@]+", email):
+            return {"error": "Invalid email format."}, 400
+        
+        if not re.match(r"^\+?\d{7,15}$", phone):
+            return {"error":"Invalid phone number format."}, 400
+
 
         try:
+            new_guest = Guest(
+                name=name,
+                email=email,
+                phone=phone,
+                planner_id=user_id
+        )
             db.session.add(new_guest)
             db.session.commit()
-        except IntegrityError:
-            db.session.rollback()
-            return {'errors': ['Guest with this email already exists.']}, 422
-        except Exception as exc:
-            db.session.rollback()
-            app.logger.error(f"Guest Creation Error: {exc}")
-            return {'errors': ['An unexpected error occurred. Please try again.']}, 500
+            db.session.refresh(new_guest)
 
-        return{
-            "id": new_guest.id,
-            "name": new_guest.name,
-            "email": new_guest.email,
-            "phone": new_guest.phone
+            return {
+                "message": "Guest added succesfully.",
+                "guest": new_guest.to_dict()
         }, 201
 
-
-class Guest(Resource):
-    def get_planner_guest_by_id(self, id):
-        planner_id = session.get('planner_id')
-
-        if not planner_id:
-            return None, {'error': 'Unauthorised. Please log in.'}, 401
+        except IntegrityError:
+            db.session.rollback()
+            return {'errors': 'Guest with this email already exists.'}, 400
         
-        guest = Guest.query.filter_by(id=id, planner_id=planner_id).first()
+        except Exception as exc:
+            db.session.rollback()
+            return {"error": str(exc)}, 500
+        
 
-        if not guest:
-            return None, {'error': 'Guest not found.'}, 404
-        
-        return guest, None, None
-        
+class GuestByID(Resource):
     def get(self, id):
-        guest, error_response, status = self.get_planner_guest_by_id(id)
-        if error_response:
-            return error_response, status
+        user_id = session.get('user_id')
+
+        if not user_id:
+            return {"error": "Unauthorised. Please log in."}, 401
+
+        guest = db.session.get(Guest, id)
+        if not guest or guest.planner_id != user_id:
+            return {"error": "Guest not found."}, 404
         
-        return {
-            'id': guest.id,
-            'name': guest.name,
-            'email': guest.email,
-            'phone': guest.phone
-        }, 200
+        return guest.to_dict(), 200
     
     def patch(self, id):
-        guest, error_response, status = self.get_planner_guest_by_id(id)
-        if error_response:
-            return error_response, status
-        
-        data = request.form
+        user_id = session.get('user_id')
 
-        errors=[]
-        if 'email' in data and not re.match(r"[^@]+@[^@]+\.[^@]+", data['email']):
-            errors.append("Invalid email format.")
-        if 'phone' in data and not re.match(r"^\+?\d{7,15}$", data['phone']):
-            errors.append("Invalid phone number format.")
+        if not user_id:
+            return {"error": "Unauthorised. Please log in."}, 401
 
-        if errors:
-            return {'errors': errors}, 422
+        guest = db.session.get(Guest, id)
+        if not guest or guest.planner_id != user_id:
+            return {"error": "Guest not found."}, 404
         
-        guest.name = data.get('name', guest.name)
-        guest.email = data.get('email', guest.email)
-        guest.phone = data.get('phone', guest.phone)
+        data = request.get_json()
+        
+        name = data.get('name')
+        email = data.get('email')
+        phone = data.get('phone')
+
+        if name:
+            guest.name = name
+
+        if email:
+            if not re.match(r"[^@]+@[^@]+\.[^@]+", email):
+                return {"error": "Invalid email format."}, 400
+            guest.email = email
+
+        if phone:
+            if not re.match(r"^\+?\d{7,15}$", phone):
+                return {"error":"Invalid phone number format."}, 400
+            guest.phone = phone
 
         try:
             db.session.commit()
+            db.session.refresh(guest)
+
+            return {
+                "message": "Guest updated succesfully.",
+                "guest": guest.to_dict()
+            }, 200
+
         except IntegrityError:
             db.session.rollback()
-            return {'errors': ['A guest with this email already exists.']}, 422
+            return {'errors': ['A guest with this email already exists.']}, 400
+        
         except Exception as exc:
             db.session.rollback()
-            app.logger.error(f"Guest Update Error: {exc}")
-            return {'errors': ['An unexpected error occurred while updating this guest.']}, 500
-
-        return {
-            'id': guest.id,
-            'name': guest.name,
-            'email': guest.email,
-            'phone': guest.phone
-        }, 200
+            return {"error": str(exc)}, 500
     
     def delete(self, id):
-        guest, error_response, status = self.get_planner_guest_by_id(id)
-        if error_response:
-            return error_response, status
+        user_id = session.get('user_id')
+
+        if not user_id:
+            return {"error": "Unauthorised. Please log in."}, 401
+
+        guest = db.session.get(Guest, id)
+        if not guest or guest.planner_id != user_id:
+            return {"error": "Guest not found."}, 404
         
         try:
             db.session.delete(guest)
             db.session.commit()
+            return {'message': 'Guest deleted successfully.'}, 200
+        
         except Exception as exc:
             db.session.rollback()
-            app.logger.error(f"Delete Error: {exc}")
-            return {'error': 'An unexpected error occurred while deleting this guest.'}, 500
-
-        return {'message': 'Guest successfully deleted.'}, 200
-    
-
-class EventGuests(Resource):
-    def get(self, event_id):
-        planner_id = session.get("planner_id")
-
-        if not planner_id:
-            return None, {'error': 'Unauthorised. Please log in.'}, 401
-        
-        event = Event.query.filter_by(id=event_id, planner_id=planner_id).first()
-        if not event:
-            return {'error': 'Event not found'}, 404
-        
-        guests = [
-            {
-                'id': attendance.guest.id,
-                'name': attendance.guest.name,
-                'email':attendance.guest.email,
-                'phone':attendance.guest.phone,
-            }
-            for attendance in event.attendances
-        ]
-
-        return guests, 200
-    
+            return {"error": str(exc)}, 500 
+  
 
 class Attendances(Resource):
     def post(self):
-        planner_id = session.get('planner_id')
+        user_id = session.get('user_id')
 
-        if not planner_id:
-            return {'error': 'Unauthorised. Please log in.'}, 401
+        if not user_id:
+            return {"error": "Unauthorised. Please log in."}, 401
         
-        data = request.form
+        data = request.get_json()
 
         guest_id = data.get('guest_id')
         event_id = data.get('event_id')
-        rsvp_status = data.get('rsvp_status', 'Pending')
-        plus_ones = data.get('plus_ones', 0)
 
-        if not guest_id or not event_id:
-            return {"error": 'guest_id and event_id are required.'}, 422
+        if not all([guest_id, event_id]):
+            return {"error": "guest_id and event_id are required."}, 400
+        
+        guest = db.session.get(Guest, guest_id)
+        event = db.session.get(Event, event_id)
+
+        if not guest or guest.planner_id != user_id:
+            return {"error": "Guest not found or unauthorised."}, 404
+        
+        if not event or event.planner_id != user_id:
+            return {"error": "Event not found or unauthorised."}, 404
+        
+        existing_attendance = db.session.query(Attendance).filter_by(
+            guest_id=guest_id,
+            event_id=event_id,
+            planner_id=user_id
+        ).first()
+
+        if existing_attendance:
+            return {"error": "This guest is already invited to this event."}, 400
         
         try:
-            new_attendance = Attendance(
+            attendance = Attendance(
                 guest_id=guest_id,
                 event_id=event_id,
-                planner_id=planner_id,
-                rsvp_status=rsvp_status,
-                plus_ones=plus_ones
+                rsvp_status="Pending",
+                plus_ones=0,
+                planner_id=user_id,
             )
 
-            db.session.add(new_attendance)
+            db.session.add(attendance)
             db.session.commit()
+            db.session.refresh(attendance)
 
             return {
-                'id': new_attendance.id,
-                'guest_id': new_attendance.guest_id,
-                'event_id': new_attendance.event_id,
-                'rsvp_status': new_attendance.rsvp_status,
-                'plus_ones': new_attendance.plus_ones
+                "message": "Attendance created successfully.",
+                "attendance": attendance.to_dict()
             }, 201
 
         except IntegrityError:
             db.session.rollback()
-            return {'errors': ['This guest is already invited to this event.']}, 422   
+            return {"error": "Database integrity error."}, 400
         
         except Exception as exc:
             db.session.rollback()
-            app.logger.error(f"Attendance Creation Error: {exc}")
-            return {'errors': ['An unexpected error occurred. Please try again.']}, 500
+            return {"error": str(exc)}, 500
         
 
-class Attendance(Resource):
-    def attendance_by_event_guest(self, id):
-        planner_id = session.get('planner_id')
-
-        if not planner_id:
-            return None, {'error': 'Unauthorised. Please log in.'}, 401
-        
-        attendance = Attendance.query.filter_by(id=id, planner_id=planner_id).first()
-        if not attendance:
-            return None, {'error': 'Attendance record not found.'}, 404
-        
-        return attendance, None, None
-        
+class AttendanceByID(Resource):
     def get(self, id):
-        attendance, error_response, status = self.attendance_by_event_guest(id)
-        if error_response:
-            return error_response, status
+        user_id = session.get('user_id')
+
+        if not user_id:
+            return {"error": "Unauthorised. Please log in."}, 401
+
+        attendance = db.session.get(Attendance, id)
+        if not attendance or attendance.planner_id != user_id:
+            return {"error": "Attendance not found."}, 404
         
-        return {
-            'id': attendance.id,
-            'guest_id': attendance.guest_id,
-            'guest_name': attendance.guest.name,
-            'guest_email': attendance.guest.email,
-            'event_id': attendance.event_id,
-            'event_name': attendance.event.name,
-            'rsvp_status': attendance.rsvp_status,
-            'plus_ones': attendance.plus_ones
-        }, 200
+        return attendance.to_dict(), 200
     
     def patch(self, id):
-        attendance, error_response, status = self.attendance_by_event_guest(id)
-        if error_response:
-            return error_response, status
-        
-        data = request.form
+        user_id = session.get('user_id')
 
-        if 'rsvp_status' in data:
-            attendance.rsvp_status = data['rsvp_status']
-        if 'plus_ones' in data:
-            attendance.plus_ones = data['plus_ones']
+        if not user_id:
+            return {"error": "Unauthorised. Please log in."}, 401
+
+        attendance = db.session.get(Attendance, id)
+        if not attendance or attendance.planner_id != user_id:
+            return {"error": "Attendance not found."}, 404
+        
+        data = request.get_json()
+
+        rsvp_status = data.get('rsvp_status')
+        plus_ones =  data.get('plus_ones')
+
+        if rsvp_status:
+            attendance.rsvp_status = rsvp_status
+
+        if plus_ones is not None:
+            if not isinstance(plus_ones, int) or plus_ones < 0:
+                return {"error": "plus_ones must be a numeric value."}, 400
+            
+            attendance.plus_ones = plus_ones
 
         try:
             db.session.commit()
+            db.session.refresh(attendance)
+
+            return {
+                "message": "Attendance updated successfully.",
+                "attendance": attendance.to_dict()
+            }, 200
+
+        except IntegrityError:
+            db.session.rollback()
+            return {"error": "Database integrity error."}, 400
+        
         except Exception as exc:
             db.session.rollback()
-            app.logger.error(f"Attendance Update Error: {exc}")
-            return {'errors': ['An unexpected error occurred while updating this attendance.']}, 500
-
-        return {
-            'id': attendance.id,
-            'guest_id': attendance.guest_id,
-            'event_id': attendance.event_id,
-            'rsvp_status': attendance.rsvp_status,
-            'plus_ones': attendance.plus_ones
-        }, 200
+            return {"error": str(exc)}, 500
     
     def delete(self, id):
-        attendance, error_response, status = self.attendance_by_event_guest(id)
-        if error_response:
-            return error_response, status
+        user_id = session.get('user_id')
+
+        if not user_id:
+            return {"error": "Unauthorised. Please log in."}, 401
+
+        attendance = db.session.get(Attendance, id)
+        if not attendance or attendance.planner_id != user_id:
+            return {"error": "Attendance not found."}, 404
         
         try:
             db.session.delete(attendance)
             db.session.commit()
+            return {'message': 'Attendance deleted successfully.'}, 200
+
         except Exception as exc:
             db.session.rollback()
-            app.logger.error(f"Delete Error: {exc}")
-            return {'error': 'An unexpected error occurred while deleting this attendance.'}, 500
+            return {"error": str(exc)}, 500
 
-        return {'message': 'Attendance (invitation) succesfully deleted.'}
+class EventGuests(Resource):
+    def get(self, event_id):
+        user_id = session.get('user_id')
+
+        if not user_id:
+            return {"error": "Unauthorised. Please log in."}, 401
+        
+        event = db.session.get(Event, event_id)
+        if not event or event.planner_id != user_id:
+            return {"error": "Event not found."}, 404
+        
+        include_rsvp = request.args.get("include_rsvp", "false").lower == 'true'
+        
+        attendances = db.session.query(Attendance).filter_by(
+            event_id=event_id,
+            planner_id=user_id
+        ).all()
+
+        event_guests = []
+        for attendance in attendances:
+            guest_data = attendance.guest.to_dict()
+            if include_rsvp:
+                guest_data['rsvp_status'] = attendance.rsvp_status
+                guest_data['plus_ones'] = attendance.plus_ones
+            
+            event_guests.append(guest_data)
+
+        return event_guests, 200
 
 
 class Logout(Resource):
@@ -597,10 +605,10 @@ api.add_resource(Profile, '/profile', endpoint='profile')
 api.add_resource(Events, '/events', endpoint='events')
 api.add_resource(EventByID, '/events/<int:id>', endpoint='event')
 api.add_resource(Guests, '/guests', endpoint='guests')
-api.add_resource(Guest, '/guests/<int:id>', endpoint='guest')
-api.add_resource(EventGuests, '/events/<int:event_id>/guests', endpoint='event_guests')
+api.add_resource(GuestByID, '/guests/<int:id>', endpoint='guest')
 api.add_resource(Attendances, '/attendances', endpoint='attendances')
-api.add_resource(Attendance, '/attendances/<int:id>', endpoint='attendance')
+api.add_resource(AttendanceByID, '/attendances/<int:id>', endpoint='attendance')
+api.add_resource(EventGuests, '/events/<int:event_id>/guests', endpoint='event_guests')
 api.add_resource(Logout, '/logout', endpoint='logout')
 
 

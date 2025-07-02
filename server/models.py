@@ -94,6 +94,7 @@ class Event(db.Model):
             'date': self.date.isoformat(),
             'time': self.time.isoformat() if self.time else None,
             'planner_id': self.planner_id,
+            'guest_count': len(self.guests),
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
         }

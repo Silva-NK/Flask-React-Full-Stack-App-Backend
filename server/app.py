@@ -98,12 +98,10 @@ class Login(Resource):
             session['user_id'] = user.id
             session.permanent = True
                 
-            response = make_response({
+            return {
                 "message": "Login successful.",
                 "user": user.to_dict()
-            })
-            
-            return response, 200
+            }, 200
                
         except Exception as exc:
             db.session.rollback()

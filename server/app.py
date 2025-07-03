@@ -621,8 +621,7 @@ api.add_resource(AttendanceByID, '/attendances/<int:id>', endpoint='attendance')
 api.add_resource(EventGuests, '/events/<int:event_id>/guests', endpoint='event_guests')
 api.add_resource(Logout, '/logout', endpoint='logout')
 
-
 # if __name__ == '__main__':
-#     app.run( host='0.0.0.0', port=int(os.environ.get("PORT", 5555)), debug=True)
+#     app.run(host="localhost", port=5555, debug=True)
 if __name__ == '__main__':
-    app.run(host="localhost", port=5555, debug=True)
+    app.run( host='0.0.0.0', port=int(os.environ.get("PORT", 5555)), debug=True)

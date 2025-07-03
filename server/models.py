@@ -1,7 +1,8 @@
 import re
 
-from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import UniqueConstraint
 from sqlalchemy.orm import validates
+from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.ext.associationproxy import association_proxy
 from werkzeug.security import generate_password_hash, check_password_hash
 
@@ -106,7 +107,7 @@ class Guest(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String, nullable=False)
-    email = db.Column(db.String(150), nullable=False, unique=True)
+    email = db.Column(db.String(150), nullable=False)
     phone = db.Column(db.String(20), nullable=False)
 
     planner_id = db.Column(db.Integer, db.ForeignKey("planners.id"), nullable=False)
@@ -114,6 +115,7 @@ class Guest(db.Model):
     created_at = db.Column(db.DateTime, server_default=db.func.now())
     updated_at = db.Column(db.DateTime, onupdate=db.func.now())
 
+    __table_args__ = (UniqueConstraint('email', 'planner_id', name='_guest_email_planner_uc'),)
 
     attendances = db.relationship("Attendance", back_populates="guest", cascade="all, delete-orphan")
 

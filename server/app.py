@@ -326,6 +326,11 @@ class Guests(Resource):
         
         if not re.match(r"^\+?\d{7,15}$", phone):
             return {"error":"Invalid phone number format."}, 400
+        
+
+        existing_guest = Guest.query.filter_by(email=email, planner_id=user_id).first()
+        if existing_guest:
+            return {'errors': 'You already have a guest with this email.'}, 400
 
 
         try:
@@ -343,10 +348,6 @@ class Guests(Resource):
                 "message": "Guest added succesfully.",
                 "guest": new_guest.to_dict()
         }, 201
-
-        except IntegrityError:
-            db.session.rollback()
-            return {'errors': 'Guest with this email already exists.'}, 400
         
         except Exception as exc:
             db.session.rollback()
@@ -576,7 +577,7 @@ class EventGuests(Resource):
         if not event or event.planner_id != user_id:
             return {"error": "Event not found."}, 404
         
-        include_rsvp = request.args.get("include_rsvp", "false").lower == 'true'
+        include_rsvp = request.args.get("include_rsvp", "false").lower() == 'true'
         
         attendances = db.session.query(Attendance).filter_by(
             event_id=event_id,
@@ -586,6 +587,7 @@ class EventGuests(Resource):
         event_guests = []
         for attendance in attendances:
             guest_data = attendance.guest.to_dict()
+            guest_data['attendance_id'] = attendance.id
             if include_rsvp:
                 guest_data['rsvp_status'] = attendance.rsvp_status
                 guest_data['plus_ones'] = attendance.plus_ones

@@ -100,7 +100,7 @@ class Login(Resource):
 
             response.set_cookie(
                 'session', 
-                value=session.sid,
+                value=session['_id'],
                 max_age=60*60*24,
                 secure=True,
                 httponly=True,

@@ -4,10 +4,10 @@ import re
 import os
 
 from sqlalchemy import or_
-from flask import request, session
 from flask_restful import Resource
 from datetime import date, datetime
 from sqlalchemy.exc import IntegrityError
+from flask import request, session, make_response
 
 from config import db, app, api
 
@@ -17,6 +17,14 @@ from models import *
 @app.route('/')
 def index():
     return '<h1>Project Server</h1>'
+
+
+@app.after_request
+def after_request(response):
+    response.headers["Access-Control-Allow-Origin"] = "https://event-manager-flask-react-app.onrender.com"
+    response.headers["Access-Control-Allow-Credentials"] = "true"
+    response.headers["Access-Control-Allow-Headers"] = "Content-Type,Authorization"
+    return response
 
 
 class Register(Resource):
@@ -85,10 +93,21 @@ class Login(Resource):
                 
             session['user_id'] = user.id
                 
-            return {
-                    "message": "Login successful.",
-                    "user": user.to_dict()
-            }, 200
+            response = make_response({
+                "message": "Login successful.",
+                "user": user.to_dict()
+            })
+
+            response.set_cookie(
+                'session', 
+                value=session.sid,
+                max_age=60*60*24,
+                secure=True,
+                httponly=True,
+                samesite='None'
+            )
+            
+            return response, 200
                
         except Exception as exc:
             db.session.rollback()

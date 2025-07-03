@@ -32,4 +32,8 @@ migrate = Migrate(app, db)
 
 api = Api(app)
 
-CORS(app, supports_credentials=True, origins=["https://event-manager-flask-react-app.onrender.com","http://localhost:3000", "http://127.0.0.1:3000"])
+CORS(app, 
+     origins=["https://event-manager-flask-react-app.onrender.com", "http://127.0.0.1:3000"],
+     supports_credentials=True,
+     methods=["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"]
+    )

@@ -96,6 +96,7 @@ class Login(Resource):
                 return {"error": "Invalid username/email and password."}, 401
                 
             session['user_id'] = user.id
+            session.permanent = True
                 
             response = make_response({
                 "message": "Login successful.",

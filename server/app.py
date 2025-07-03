@@ -102,15 +102,6 @@ class Login(Resource):
                 "message": "Login successful.",
                 "user": user.to_dict()
             })
-
-            response.set_cookie(
-                'session', 
-                value=session['_id'],
-                max_age=60*60*24,
-                secure=True,
-                httponly=True,
-                samesite='None'
-            )
             
             return response, 200
                

@@ -40,12 +40,12 @@ wcwidth = "==0.2.13"
 werkzeug = "==2.2.2"
 flask = "*"
 flask-sqlalchemy = "*"
-gunicorn = "*"
 python-dotenv = "*"
 flask-cors = "*"
 flask-restful = "*"
 flask-migrate = "*"
 psycopg2-binary = "*"
+gunicorn = "*"
 
 [dev-packages]
 

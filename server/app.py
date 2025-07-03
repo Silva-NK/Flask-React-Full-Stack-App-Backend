@@ -88,7 +88,11 @@ class Login(Resource):
                 or_(Planner.username == username_or_email, Planner.email == username_or_email)
             ).first()
             
-            if not user or not user.check_password(password):
+            if not user:
+                app.logger.error(f"User not found with username/email: {username_or_email}")
+                return {"error": "Invalid username/email and password."}, 401
+            elif not user.check_password(password):
+                app.logger.error(f"Incorrect password for user: {username_or_email}")
                 return {"error": "Invalid username/email and password."}, 401
                 
             session['user_id'] = user.id
